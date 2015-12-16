@@ -1,0 +1,330 @@
+' {$STAMP BS2}
+' {$PBASIC 2.5}
+' {$PORT COM3}
+
+' -----[ I/O Definitions ]-------------------------------------------------
+
+RightServo      PIN     15              ' Right Servo
+LeftServo       PIN     14              ' Left Servo
+lcd             PIN      8
+' -----[ Constants ]-------------------------------------------------------
+
+scalecon1 CON 11000    'Constant for Flex Sensor 1
+scalecon2 CON 10850    'Constant for Flex Sensor 2
+scalecon3 CON 10800    'Constant for Flex Sensor 3
+scalecon4 CON 10800    'Constant for Flex Sensor 4
+
+distcon  CON 2257
+
+' -----[ Variables ]-------------------------------------------------------
+
+fs1 VAR Word
+fs2 VAR Word
+fs3 VAR Word
+fs4 VAR Word
+ul1 VAR Word
+ir1 VAR Word
+ir2 VAR Word
+temp VAR Word
+pulsecount VAR Word
+PS VAR Word
+RS VAR Word
+LS VAR Word
+
+' -----[ Program Code ]----------------------------------------------------
+
+
+Main:
+DO
+DEBUG CLS
+GOSUB ld
+GOSUB f1
+GOSUB f2
+GOSUB f3
+GOSUB f4
+GOSUB ping
+GOSUB irs
+rs = 750
+ls = 750
+
+
+IF (fs3 < 450) AND (fs4 <450) THEN  'Stop switch
+  DO
+  IF(fs2 < 450) AND (fs1 < 450) THEN  'Reset the stop switch
+    SEROUT lcd, 84, [12]
+
+    SEROUT lcd, 84, [128,"Reset Cleared"]
+
+    DEBUG "reset cleared"
+    GOTO main
+  ELSE
+    DEBUG "reset"
+    SEROUT lcd, 84, [12]
+
+    SEROUT lcd, 84, [128,"STOP1 Switch"]
+
+    GOSUB f3
+    GOSUB f4
+  ENDIF
+  LOOP
+ENDIF
+
+DO WHILE (ul1 < 20)                     'Obstacle detection
+  PULSOUT LeftServo, 750                ' Left Servo Move Pulse Value
+  PULSOUT RightServo, 750               ' Right Servo Move Pulse Value
+  DEBUG CR,"STOP UltraSonic"
+  SEROUT lcd, 84, [12]
+
+  SEROUT lcd, 84, [128,"STOP2 Ultrasonic"]
+  'PAUSE 10
+
+  GOSUB ping
+ '
+LOOP
+
+IF (fs1 > 650) AND (fs1 < 850) THEN     'Speed Control Using FLex Sensor
+DEBUG CR,"stationary1"
+
+ELSEIF (fs1 < 650) AND (fs1 > 550) THEN
+DEBUG CR,"fw1"
+SEROUT lcd, 84, [12]
+
+SEROUT lcd, 84, [128,"Forward"]
+
+LS = 850
+RS = 650
+PS = 20
+GOTO mov
+
+ELSEIF (fs1 < 550) AND (fs1 > 450) THEN
+DEBUG CR,"fw2"
+LS = 800
+RS = 600
+PS = 20
+SEROUT lcd, 84, [12]
+
+SEROUT lcd, 84, [128,"Forward"]
+
+GOTO mov
+ELSEIF (fs1 < 450)   THEN
+DEBUG CR,"fw3"
+LS = 780
+RS = 720
+PS = 20
+SEROUT lcd, 84, [12]
+
+SEROUT lcd, 84, [128,"Forward"]
+
+GOTO mov
+ENDIF
+
+IF (fs2 > 650) AND (fs2 < 850)  THEN    'Speed Control Using FLex Sensor
+DEBUG CR,"stationary2"
+ELSEIF (fs2 < 650) AND (fs2 > 550)  THEN
+DEBUG CR,"bck1"
+SEROUT lcd, 84, [12]
+
+SEROUT lcd, 84, [128,"BACK"]
+
+RS = 850
+LS = 650
+PS = 20
+GOTO mov
+ELSEIF (fs2 < 550) AND (fs2 > 450)  THEN
+DEBUG CR,"bck2"
+SEROUT lcd, 84, [12]
+
+SEROUT lcd, 84, [128,"BACK"]
+
+RS = 800
+LS = 700
+PS = 20
+GOTO mov
+ELSEIF (fs2 < 450)  THEN
+DEBUG CR,"bck3"
+SEROUT lcd, 84, [12]
+
+SEROUT lcd, 84, [128,"BACK"]
+
+RS = 780
+LS = 720
+PS = 20
+GOTO mov
+ENDIF
+
+IF (fs3 > 650) AND (fs3 < 850)   THEN    'Speed Control Using FLex Sensor
+DEBUG CR,"stationary3"
+ELSEIF (fs3 < 650) AND (fs3 > 550)   THEN
+DEBUG CR,"rw1"
+SEROUT lcd, 84, [12]
+
+SEROUT lcd, 84, [128,"RIGHT"]
+
+RS = 650
+LS = 650
+PS = 20
+GOTO mov
+ELSEIF (fs3 < 550) AND (fs3 > 450)   THEN
+DEBUG CR,"rw2"
+SEROUT lcd, 84, [12]
+
+SEROUT lcd, 84, [128,"RIGHT"]
+
+RS = 700
+LS = 700
+PS = 20
+GOTO mov
+ELSEIF (fs3 < 450)   THEN
+DEBUG CR,"rw3"
+SEROUT lcd, 84, [12]
+
+SEROUT lcd, 84, [128,"RIGHT"]
+
+RS = 720
+LS = 720
+PS = 20
+GOTO mov
+ENDIF
+
+IF (fs4 > 650) AND (fs4 < 850)   THEN    'Speed Control Using FLex Sensor
+DEBUG CR,"stationary4"
+ELSEIF (fs4 < 650) AND (fs4 > 550)   THEN
+DEBUG CR,"lf1"
+SEROUT lcd, 84, [12]
+
+SEROUT lcd, 84, [128,"LEFT"]
+
+RS = 850
+LS = 850
+PS = 20
+GOTO mov
+ELSEIF (fs4 < 550) AND (fs4 > 450)   THEN
+DEBUG CR,"lf2"
+RS = 800
+LS = 800
+PS = 20
+SEROUT lcd, 84, [12]
+
+SEROUT lcd, 84, [128,"LEFT"]
+
+GOTO mov
+ELSEIF (fs4 < 450)   THEN
+DEBUG CR,"lf3"
+SEROUT lcd, 84, [12]
+
+SEROUT lcd, 84, [128,"LEFT"]
+
+RS = 780
+LS = 780
+ps = 20
+GOTO mov
+ENDIF
+
+'DEBUG ? fs1,? fs2,? fs3,? fs4
+LOOP
+
+
+'Initialize LCD
+LD:
+  SEROUT lcd, 84, [22, 12] 'Initialize LCD
+
+  SEROUT lcd, 84, [128,"Glove Controlled", 148, "      BoeBot "]
+
+
+
+' *************************************************************************
+' * USE THE INFRARED SENSORS TO DETECT CLIFFS                             *
+' * WHILE THE PING))) IS FACING FORWARD.                                  *
+' *************************************************************************
+
+'IR sensor
+IRS:                                    'Check for IR Sensor 1 and 2 HIGH
+  DO WHILE(IN6 = 0) OR (IN7 = 0)
+  PULSOUT LeftServo, 750                ' Left Servo Move Pulse Value
+  PULSOUT RightServo, 750               ' Right Servo Move Pulse Value
+  DEBUG CR,"STOP IR Sensor"
+  SEROUT lcd, 84, [12]
+
+  SEROUT lcd, 84, [128,"CLIFF DETECTED"]
+
+  LOOP
+
+' *************************************************************************
+' * USE THE ULTRASONIC SENSOR TO GET DISTANCE VALUES                      *
+' * WHILE THE PING))) IS FACING FORWARD.                                  *
+' *************************************************************************
+
+'Ping sensor
+PING:                                   'Ultrasonic Distance Measuring
+  PULSOUT 4, 5
+  PULSIN 4, 1, ul1
+  ul1 = distcon ** ul1
+  DEBUG CR,DEC3 ul1, " cm"
+  RETURN
+
+' *************************************************************************
+' * USE THE RCTIME VALUES TO GET THE FLEX SENSOR VALUES                   *
+' * WHILE THE PING))) IS FACING FORWARD.                                  *
+' *************************************************************************
+
+
+'Flex Sensor1
+F1:
+  HIGH 0 'hold pin 0 high to charge capacitor
+  PAUSE 1 'charge capacitor for 1/1000 of a second
+  RCTIME 0, 1,fs1 'measure discharge time of flex resistor through capacitor
+  'fs1=fs1**scalecon1+500
+  temp = fs1*/439 - 2572
+  fs1 = fs1 - temp
+  fs1 = fs1/2
+
+  RETURN
+
+'Flex Sensor2
+F2:
+  HIGH 1 'hold pin 0 high to charge capacitor
+  PAUSE 1 'charge capacitor for 1/1000 of a second
+  RCTIME 1, 1,fs2 'measure discharge time of flex resistor through capacitor
+'  fs2=fs2**scalecon2+500
+  temp = fs2*/439 - 2572
+  fs2 = fs2 - temp
+  fs2 = fs2/2
+
+  RETURN
+
+'Flex Sensor3
+F3:
+  HIGH 2 'hold pin 0 high to charge capacitor
+  PAUSE 1 'charge capacitor for 1/1000 of a second
+  RCTIME 2, 1,fs3 'measure discharge time of flex resistor through capacitor
+  'fs3=fs3**scalecon3+500
+  temp = fs3*/439 - 2572
+  fs3 = fs3 - temp
+  fs3 = fs3/2
+
+  RETURN
+
+'Flex Sensor4
+F4:
+  HIGH 3 'hold pin 0 high to charge capacitor
+  PAUSE 1 'charge capacitor for 1/1000 of a second
+  RCTIME 3, 1,fs4 'measure discharge time of flex resistor through capacitor
+  'fs4=fs4**scalecon4+500
+  temp = fs4*/439 - 2572
+  fs4 = fs4 - temp
+  fs4 = fs4/2
+
+  RETURN
+
+' *************************************************************************
+' * USE THE APPROPRIATE PULSOUT VALUES TO MAKE YOUR BOE-BOT MOVE          *
+' * WHILE THE PING))) IS FACING FORWARD.                                  *
+' *************************************************************************
+
+MOV:                                    ' Send Moving Pulse
+  FOR pulseCount = 0 TO 200
+   PULSOUT LeftServo, LS               ' Left Servo Move Pulse Value
+   PULSOUT RightServo, RS              ' Right Servo Move Pulse Value
+'   PAUSE PS                             'Refresh Delay using values passed from speed control
+  NEXT
+  RETURN
